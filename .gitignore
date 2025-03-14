@@ -27,6 +27,12 @@
 # Visual Studio cache directory
 .vs/
 
+# Visual Studio Code cache directory
+.vscode/
+
+# JetBrains Rider cache directory
+.idea/
+
 # Gradle cache directory
 .gradle/
 
@@ -72,3 +78,6 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+# My Optional Plugins
+/Assets/Plugins/UnityEditorDarkMode*
+/Assets/DevLocker*
