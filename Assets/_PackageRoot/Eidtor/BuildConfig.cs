@@ -14,7 +14,8 @@ namespace ProjectBuilder.Editor
         public string configName = "";
         public bool development = false;
         public string packageName = "";
-
+        public string scriptSymbols = "";
+        
         #endregion
 
         #region Android
@@ -37,5 +38,10 @@ namespace ProjectBuilder.Editor
         #endregion
         
         public string customConfig = "{}";
+
+        public List<string> ParseCommandLineArgs(string[] args)
+        {
+            return new List<string>();
+        }
     }
 }
