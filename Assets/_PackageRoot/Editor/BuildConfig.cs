@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using UnityEngine;
 
 
@@ -15,6 +16,7 @@ namespace ProjectBuilder.Editor
         public bool development = false;
         public string packageName = "";
         public string scriptSymbols = "";
+        public string removeScriptSymbols = "";
         
         #endregion
 
@@ -36,12 +38,14 @@ namespace ProjectBuilder.Editor
         #region iOS
         public string appleDeveloperTeamID = "";
         #endregion
-        
-        public string customConfig = "{}";
 
-        public List<string> ParseCommandLineArgs(string[] args)
+        public virtual void  ParseCommandLineArgs(string[] args)
         {
-            return new List<string>();
+        }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
     }
 }

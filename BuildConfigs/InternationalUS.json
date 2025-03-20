@@ -1,0 +1,67 @@
+
+{
+    "configName" : "InternationalUS",
+    "development" : false,
+    "isInternational" : true,
+    "regroupType"     : 0,
+    "rebuildGroup"    : true,
+    "refreshGroup"    : false,
+    "forceBuildAppBundle" : true,
+    "removeOptionalRes"   : true,
+    "buildAssetBundles"   : true,
+    "defaultLanguage"     : "En_US",
+    "xmlAbPackagePath"    : "AutoGroupSettingRelease",
+    "optimizeAssetBundle" : true,
+    "defaultHotfixTargetPath" : "/Volumes/PSSD/workspace/fileServer/avg/",
+    "projectName"             : "test",
+    "specificVersionString"   : "",
+    "arm64"                   : true,
+    "scriptSymbols"           : "INTERNATIONALUS_EDITION;INTERNATIONAL_EDITION;AVG_SDK;USE_THINKING_DATA_SDK",
+    "packageName"             : "com.dreality.crazyones.us",
+    "appIcon"                 : "Assets/AppIcons/AVG_icon.png",
+    "minAndroidSdkVersion"    : 28,
+    "targetAndroidSdkVersion" : 34,
+    "useCustomKeystore"       : true,
+    "keystoreName"            : "keystore/crazyones-us.keystore",
+    "keystorePass"            : "XSg+1AeEEOSCaFUc6vgUDg==",
+    "keyaliasName"            : "+i77H425NON6mrEe+yts5w==",
+    "keyaliasPass"            : "XSg+1AeEEOSCaFUc6vgUDg==",
+    "channel"                 : "4000002",
+    "channeliOS"              : "3000003",
+    "removeScriptSymbols"     : "No_SDK",
+    "appleDeveloperTeamID"    : "C9XDCSS3LD",
+    "removeAssets"            : [
+        "Assets/Plugins/Android/AndroidManifest.xml"
+    ],
+    "supportSDK"              : [
+        "InternationalSDK"
+    ],
+    "processors"              : [
+        "RefreshFBSettings",
+        "RefreshGoogleInfoSettings"
+    ],
+    "iOSPlistProcessors"      : [
+        "InternationalPlistProcessor"
+    ],
+    "dynamicConfigUrlInfo" : {
+        "configUrls" : ["43.135.177.36","43.135.177.36"],
+        "useHttps" : false
+    },
+    "userData"                : {
+        "FacebookSettings" : "Assets/InternationalSDK/FacebookSDK/SDK/Resources/FacebookSettings.US.asset",
+        "GoogleServices" : "Assets/InternationalSDK/Plugins/Android/google-services.us.json",
+        "GoogleServices-Info" : "Assets/InternationalSDK/Plugins/iOS/GoogleService-Info.us.plist",
+        "reversedClientId" : "com.googleusercontent.apps.259113062157-qb2gru9ikvua32gf0kmblo1s2emfo1n8",
+        "googleAndroidClientId" : "246978066174-j8gdu967phoa19g20j0kk3v3gt88ovu7.apps.googleusercontent.com",
+        "fileSharingEnabled" : "true",
+        "useAdjustSDK" : "true",
+        "adjustAppToken" : "af904d9of3eo",
+        "adjustEventTokens" : "{\"pay_result\":\"a3h2eq\"}",
+        "thinkingDataAppId" : "3e944ad2aaa947f49fea4d6132716d4b",
+        "thinkingServerUrl" : "https://report.crazyones.world:8991",
+        "signInWithApple" : "true"
+    },
+    "supportLanguages"         : [
+        "En_US"
+    ]
+}

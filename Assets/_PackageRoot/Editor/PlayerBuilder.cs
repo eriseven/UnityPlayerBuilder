@@ -2,8 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
+using PlayerBuilder.Eidtor;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,22 +14,10 @@ namespace ProjectBuilder.Editor
 {
     public class PlayerBuilder
     {
-        [MenuItem("ProjectBuilder/Build Player")]
-        static void StartBuild()
+        // [MenuItem("ProjectBuilder/Build Player")]
+        public static void StartBuild<T>() where T : BuildConfig
         {
-            OnStart();
-        }
-
-        [MenuItem("ProjectBuilder/Test/StartTask")]
-        static void StartTask()
-        {
-            AssetDatabase.StartAssetEditing();
-        }
-
-        [MenuItem("ProjectBuilder/Test/EndTask")]
-        static void EndTask()
-        {
-            AssetDatabase.StopAssetEditing();
+            OnStart<T>();
         }
         
         [Serializable]
@@ -34,6 +25,11 @@ namespace ProjectBuilder.Editor
         {
             public string[] args;
             public BuildConfig buildConfig = new BuildConfig();
+            public int currentStepIndex = -1;
+            public override string ToString()
+            {
+                return JsonConvert.SerializeObject(this, Formatting.Indented);
+            }
         }
 
         static void ClearLastBuildSession()
@@ -44,7 +40,9 @@ namespace ProjectBuilder.Editor
 
         static void StoreBuildSession(BuildContext context)
         {
-            EditorPrefs.SetString($"BuildSession[{Application.dataPath}]",  JsonConvert.SerializeObject(context));
+            EditorPrefs.SetString($"BuildSession[{Application.dataPath}]",
+                JsonConvert.SerializeObject(context,
+                    new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }));
         }
 
         static BuildContext RestoreBuildSession()
@@ -52,19 +50,20 @@ namespace ProjectBuilder.Editor
             if (EditorPrefs.HasKey($"BuildSession[{Application.dataPath}]"))
             {
                 var jsonStr = EditorPrefs.GetString($"BuildSession[{Application.dataPath}]", "");
-                return JsonConvert.DeserializeObject<BuildContext>(jsonStr);
+                return JsonConvert.DeserializeObject<BuildContext>(jsonStr,  new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
             }
+
             return null;
         }
 
         private static BuildContext buildSession = null;
 
-        static void OnStart()
+        static void OnStart<T>() where T : BuildConfig
         {
             Debug.Log("BuildSession Started");
             ClearLastBuildSession();
             var commandLineArgs = Environment.GetCommandLineArgs();
-            var buildConfig = ParseCommandLineArgs(commandLineArgs);
+            var buildConfig = ParseCommandLineArgs<T>(commandLineArgs);
 
             buildSession = new BuildContext()
             {
@@ -73,10 +72,13 @@ namespace ProjectBuilder.Editor
             };
             StoreBuildSession(buildSession);
 
+            Debug.Log($"BuildSession \n {buildSession}");
+
             EditorApplication.update -= OnUpdate;
             EditorApplication.update += OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+            RunSteps().Forget();
         }
 
         [MenuItem("ProjectBuilder/Cancel Building")]
@@ -95,7 +97,7 @@ namespace ProjectBuilder.Editor
                 Debug.Log($"BuildSession[{Application.dataPath}] is updating ...");
                 return;
             }
-            
+
             if (EditorApplication.isCompiling)
             {
                 Debug.Log($"BuildSession[{Application.dataPath}] is compiling ...");
@@ -114,9 +116,10 @@ namespace ProjectBuilder.Editor
         {
             Debug.Log($"BuildSession[{Application.dataPath}] is reloaded.");
             buildSession = RestoreBuildSession();
+            Debug.Log($"BuildSession \n {buildSession}");
             if (buildSession == null)
             {
-                // OnEnd();
+                OnEnd();
                 return;
             }
 
@@ -124,10 +127,12 @@ namespace ProjectBuilder.Editor
             EditorApplication.update += OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+
+            RunSteps().Forget();
         }
 
 
-        static BuildConfig ParseCommandLineArgs(string[] args)
+        static BuildConfig ParseCommandLineArgs<T>(string[] args) where T : BuildConfig
         {
             var projectPath = Path.GetDirectoryName(Application.dataPath);
 
@@ -139,11 +144,15 @@ namespace ProjectBuilder.Editor
             optionSet.Parse(args);
 
             BuildConfig buildConfig = null;
-
+            if (string.IsNullOrEmpty(buildConfigPath))
+            {
+                buildConfigPath = "BuildConfigs/International.json";
+            }
+            
             if (projectPath != null && File.Exists(Path.Combine(projectPath, buildConfigPath)))
             {
                 buildConfig =
-                    JsonConvert.DeserializeObject<BuildConfig>(
+                    JsonConvert.DeserializeObject<T>(
                         Encoding.UTF8.GetString(File.ReadAllBytes(buildConfigPath)));
             }
             else
@@ -154,6 +163,72 @@ namespace ProjectBuilder.Editor
             buildConfig.ParseCommandLineArgs(args);
 
             return buildConfig;
+        }
+
+        static async UniTask<int> RunStep(PlayerBuilderProcessor processor)
+        {
+            try
+            {
+                AssetDatabase.StartAssetEditing();
+                return await processor.Process(buildSession.buildConfig);
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
+        }
+        
+        static async UniTask RunSteps()
+        {
+            CollectProcessors();
+            buildSession.currentStepIndex++;
+
+            // for (int i = buildSession.currentStepIndex; i < buildSteps.Count; i++)
+            for (; buildSession.currentStepIndex < buildSteps.Count; buildSession.currentStepIndex++)
+            {
+                int result = 0;
+                try
+                {
+                    result = await RunStep(buildSteps[buildSession.currentStepIndex]);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                    OnEnd();
+                    throw;
+                }
+
+                await UniTask.NextFrame();
+                // await UniTask.WaitUntil(() => !EditorApplication.isPlaying);
+
+                StoreBuildSession(buildSession);
+            }
+
+            OnEnd();
+        }
+
+        private static List<PlayerBuilderProcessor> buildSteps = new();
+
+        static void CollectProcessors()
+        {
+            buildSteps = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes())
+                .Where(type => type.IsSubclassOf(typeof(PlayerBuilderProcessor))).Select(type =>
+                // .Where(type => !type.IsInterface && typeof(IPlayerBuilderProcessor).IsAssignableFrom(type)).Select(type =>
+                    Activator.CreateInstance(type))
+                .Cast<PlayerBuilderProcessor>().OrderBy(o => o.callbackOrder).ToList();
+        }
+
+        static void ProcessScriptDefineSymbols()
+        {
+            // HashSet<string> defineSymbols = new HashSet<string>()
+            var defaultSymbols = new HashSet<string>(PlayerSettings
+                .GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup).Split(';'));
+            var configSymbols = new HashSet<string>(buildSession.buildConfig.scriptSymbols.Split(';'));
+            var toRemove = new HashSet<string>(buildSession.buildConfig.removeScriptSymbols.Split(';'));
+            defaultSymbols.UnionWith(configSymbols);
+            defaultSymbols.ExceptWith(toRemove);
+            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup,
+                string.Join(";", defaultSymbols));
         }
 
         static void PrePostprocessBuild()

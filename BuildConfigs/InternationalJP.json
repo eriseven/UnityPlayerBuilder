@@ -1,0 +1,70 @@
+
+{
+    "configName" : "InternationalJP",
+    "development" : false,
+    "isInternational" : true,
+    "regroupType"     : 0,
+    "rebuildGroup"    : true,
+    "refreshGroup"    : false,
+    "forceBuildAppBundle" : true,
+    "removeOptionalRes"   : true,
+    "buildAssetBundles"   : true,
+    "defaultLanguage"     : "Ja_JP",
+    "xmlAbPackagePath"    : "AutoGroupSettingRelease",
+    "optimizeAssetBundle" : true,
+    "defaultHotfixTargetPath" : "/Volumes/PSSD/workspace/fileServer/avg/",
+    "projectName"             : "test",
+    "specificVersionString"   : "",
+    "arm64"                   : true,
+    "scriptSymbols"           : "INTERNATIONALJP_EDITION;INTERNATIONAL_EDITION;AVG_SDK;USE_THINKING_DATA_SDK",
+    "packageName"             : "com.dreality.crazyones.jp",
+    "appIcon"                 : "Assets/AppIcons/AVG_icon.png",
+    "minAndroidSdkVersion"    : 28,
+    "targetAndroidSdkVersion" : 34,
+    "useCustomKeystore"       : true,
+    "keystoreName"            : "keystore/crazyones-jp.keystore",
+    "keystorePass"            : "XSg+1AeEEOSCaFUc6vgUDg==",
+    "keyaliasName"            : "r65yeQN8sgCScEH1aSh0VQ==",
+    "keyaliasPass"            : "XSg+1AeEEOSCaFUc6vgUDg==",
+    "channel"                 : "4000003",
+    "channeliOS"              : "3000004",
+    "removeScriptSymbols"     : "No_SDK",
+    "appleDeveloperTeamID"    : "C9XDCSS3LD",
+    "removeAssets"            : [
+        "Assets/Plugins/Android/AndroidManifest.xml"
+    ],
+    "supportSDK"              : [
+        "InternationalSDK",
+        "QiyuSDK"
+    ],
+    "processors"              : [
+        "RefreshFBSettings",
+        "RefreshGoogleInfoSettings"
+    ],
+    "iOSPlistProcessors"      : [
+        "InternationalPlistProcessor"
+    ],
+    "dynamicConfigUrlInfo" : {
+        "configUrls" : ["notice.gal-game.fun","notice.gal-game.fun"],
+        "useHttps" : true
+    },
+    "userData"                : {
+        "FacebookSettings" : "Assets/InternationalSDK/FacebookSDK/SDK/Resources/FacebookSettings.JP.asset",
+        "GoogleServices" : "Assets/InternationalSDK/Plugins/Android/google-services.jp.json",
+        "GoogleServices-Info" : "Assets/InternationalSDK/Plugins/iOS/GoogleService-Info.jp.plist",
+        "reversedClientId" : "com.googleusercontent.apps.1083285642275-5hvhetj5t3bn5jfljnu7pl3os8acoidd",
+        "googleAndroidClientId" : "1083285642275-0h92sdmo97drjjdk15kd6qgpn2rkrbau.apps.googleusercontent.com",
+        "fileSharingEnabled" : "true",
+        "useAdjustSDK" : "true",
+        "adjustAppToken" : "6gzxxpaj9rls",
+        "adjustEventTokens" : "{\"pay_result\":\"2cz2r3\"}",
+        "thinkingDataAppId" : "25ee38fc8bd445f88bda4e836de830c7",
+        "thinkingServerUrl" : "https://report.crazyones.world:8991",
+        "signInWithApple" : "true",
+        "SDK_QiyuSDK_Appkey" : "9098d2026f8eaaa127d23184bf41f4b3"
+    },
+    "supportLanguages"         : [
+        "Ja_JP"
+    ]
+
+}
