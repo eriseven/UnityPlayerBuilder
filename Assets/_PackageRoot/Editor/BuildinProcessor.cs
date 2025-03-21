@@ -5,6 +5,7 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using ProjectBuilder.Editor;
 using UnityEditor;
+using UnityEditor.Presets;
 using UnityEngine;
 
 #if UNITY_ANDROID
@@ -19,9 +20,44 @@ using UnityEditor.iOS.Xcode.Extensions;
 
 namespace PlayerBuilder.Eidtor
 {
+    public class ApplyPlayerSettingsPreset : PlayerBuilderProcessor
+    {
+        public override int callbackOrder { get; } = -1;
+
+        public override async UniTask<int> Process(BuildConfig buildConfig)
+        {
+            if (!string.IsNullOrEmpty(buildConfig.playerSettings))
+            {
+                Preset preset = AssetDatabase.LoadAssetAtPath<Preset>(buildConfig.playerSettings);
+                if (preset != null)
+                {
+                    try
+                    {
+                        Debug.Log($"ResetPlayerSettings: {preset.name}");
+                        // AssetDatabase.StartAssetEditing();
+                        var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>()[0];
+                        preset.ApplyTo(playerSettings);
+                        AssetDatabase.Refresh();
+                        AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(playerSettings));
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
+                    finally
+                    {
+                        // AssetDatabase.StopAssetEditing();
+                    }
+                }
+            }
+
+            return 0;
+        }
+    }
+
     public class ScriptDefineSymbolsProcessor : PlayerBuilderProcessor
     {
-        public override int callbackOrder { get; } = 5000;
+        public override int callbackOrder { get; } = 5001;
 
         public override async UniTask<int> Process(BuildConfig config)
         {
@@ -97,65 +133,6 @@ namespace PlayerBuilder.Eidtor
             {
                 PlayerSettings.iOS.appleDeveloperTeamID = config.appleDeveloperTeamID;
             }
-#endif
-
-            return 0;
-        }
-    }
-
-    public class BuildPlayer : PlayerBuilderProcessor
-    {
-        public override int callbackOrder { get; } = 7000;
-
-        static string[] GetBuildScenes(BuildConfig config)
-        {
-            return EditorBuildSettings.scenes.Where(e => e.enabled).Select(e => e.path).ToArray();
-        }
-
-        static BuildOptions GetBuildOptions(BuildConfig config)
-        {
-            BuildOptions buidlOptions = BuildOptions.None;
-            if (config.development)
-            {
-                buidlOptions |= BuildOptions.Development;
-                buidlOptions |= BuildOptions.EnableDeepProfilingSupport;
-                buidlOptions |= BuildOptions.AllowDebugging;
-                var linkerFlagsWlStubGroupSize = "--linker-flags=-Wl,--stub-group-size=11534360";
-                PlayerSettings.SetAdditionalIl2CppArgs(linkerFlagsWlStubGroupSize);
-            }
-
-            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
-            {
-                buidlOptions |= BuildOptions.AcceptExternalModificationsToPlayer;
-            }
-
-            return buidlOptions;
-        }
-
-        public override async UniTask<int> Process(BuildConfig config)
-        {
-            Debug.Log($"BuildPlayer");
-
-            string targetPath = config.buildTargetPath;
-            if (string.IsNullOrEmpty(targetPath))
-            {
-                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput");
-            }
-
-#if UNITY_ANDROID
-            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
-            {
-                if (!Directory.Exists(targetPath))
-                {
-                    Directory.CreateDirectory(targetPath);
-                }
-            }
-            UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.Android, GetBuildOptions(config));
-#endif
-
-#if UNITY_IOS
-            UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.iOS,
-                GetBuildOptions(config));
 #endif
 
             return 0;

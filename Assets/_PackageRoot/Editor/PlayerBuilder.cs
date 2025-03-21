@@ -8,6 +8,8 @@ using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using PlayerBuilder.Eidtor;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
+using UnityEditor.Presets;
 using UnityEngine;
 
 namespace ProjectBuilder.Editor
@@ -19,13 +21,14 @@ namespace ProjectBuilder.Editor
         {
             OnStart<T>();
         }
-        
+
         [Serializable]
         public class BuildContext
         {
             public string[] args;
             public BuildConfig buildConfig = new BuildConfig();
             public int currentStepIndex = -1;
+
             public override string ToString()
             {
                 return JsonConvert.SerializeObject(this, Formatting.Indented);
@@ -50,13 +53,42 @@ namespace ProjectBuilder.Editor
             if (EditorPrefs.HasKey($"BuildSession[{Application.dataPath}]"))
             {
                 var jsonStr = EditorPrefs.GetString($"BuildSession[{Application.dataPath}]", "");
-                return JsonConvert.DeserializeObject<BuildContext>(jsonStr,  new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+                return JsonConvert.DeserializeObject<BuildContext>(jsonStr,
+                    new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
             }
 
             return null;
         }
 
         private static BuildContext buildSession = null;
+
+        static void ResetPlayerSettings(BuildConfig buildConfig)
+        {
+            if (!string.IsNullOrEmpty(buildConfig.playerSettings))
+            {
+                Preset preset = AssetDatabase.LoadAssetAtPath<Preset>(buildConfig.playerSettings);
+                if (preset != null)
+                {
+                    try
+                    {
+                        Debug.Log($"ResetPlayerSettings: {preset.name}");
+                        AssetDatabase.StartAssetEditing();
+                        var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>()[0];
+                        preset.ApplyTo(playerSettings);
+                        AssetDatabase.Refresh();
+                        AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(playerSettings));
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
+                    finally
+                    {
+                        AssetDatabase.StopAssetEditing();
+                    }
+                }
+            }
+        }
 
         static void OnStart<T>() where T : BuildConfig
         {
@@ -78,10 +110,13 @@ namespace ProjectBuilder.Editor
             EditorApplication.update += OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+
+            // ResetPlayerSettings(buildConfig);
+
             RunSteps().Forget();
         }
 
-        [MenuItem("ProjectBuilder/Cancel Building")]
+        // [MenuItem("ProjectBuilder/Cancel Building")]
         static void OnEnd()
         {
             Debug.Log($"BuildSession[{Application.dataPath}] build end.");
@@ -148,7 +183,7 @@ namespace ProjectBuilder.Editor
             {
                 buildConfigPath = "BuildConfigs/International.json";
             }
-            
+
             if (projectPath != null && File.Exists(Path.Combine(projectPath, buildConfigPath)))
             {
                 buildConfig =
@@ -167,17 +202,23 @@ namespace ProjectBuilder.Editor
 
         static async UniTask<int> RunStep(PlayerBuilderProcessor processor)
         {
+            bool assetEdit = processor.AssetEdit;
             try
             {
-                AssetDatabase.StartAssetEditing();
+                if (assetEdit) AssetDatabase.StartAssetEditing();
                 return await processor.Process(buildSession.buildConfig);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                throw;
             }
             finally
             {
-                AssetDatabase.StopAssetEditing();
+                if (assetEdit) AssetDatabase.StopAssetEditing();
             }
         }
-        
+
         static async UniTask RunSteps()
         {
             CollectProcessors();
@@ -195,15 +236,25 @@ namespace ProjectBuilder.Editor
                 {
                     Debug.LogException(e);
                     OnEnd();
-                    throw;
+                    // throw;
                 }
 
-                await UniTask.NextFrame();
-                // await UniTask.WaitUntil(() => !EditorApplication.isPlaying);
+                // Debug.Log($"WaitNextFame");
+                // await UniTask.NextFrame();
+                Debug.Log($"Wait for building player");
+                await UniTask.WaitUntil(() => BuildPipeline.isBuildingPlayer == false);
+
+                Debug.Log($"Wait for editor updating");
+                await UniTask.WaitUntil(() => EditorApplication.isUpdating == false);
+
+                Debug.Log($"Wait for editor compiling");
+                await UniTask.WaitUntil(() => EditorApplication.isCompiling == false);
+
 
                 StoreBuildSession(buildSession);
             }
 
+            BuildPlayer(buildSession.buildConfig);
             OnEnd();
         }
 
@@ -213,30 +264,108 @@ namespace ProjectBuilder.Editor
         {
             buildSteps = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes())
                 .Where(type => type.IsSubclassOf(typeof(PlayerBuilderProcessor))).Select(type =>
-                // .Where(type => !type.IsInterface && typeof(IPlayerBuilderProcessor).IsAssignableFrom(type)).Select(type =>
+                    // .Where(type => !type.IsInterface && typeof(IPlayerBuilderProcessor).IsAssignableFrom(type)).Select(type =>
                     Activator.CreateInstance(type))
                 .Cast<PlayerBuilderProcessor>().OrderBy(o => o.callbackOrder).ToList();
         }
 
-        static void ProcessScriptDefineSymbols()
+        static BuildOptions GetBuildOptions(BuildConfig config)
         {
-            // HashSet<string> defineSymbols = new HashSet<string>()
-            var defaultSymbols = new HashSet<string>(PlayerSettings
-                .GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup).Split(';'));
-            var configSymbols = new HashSet<string>(buildSession.buildConfig.scriptSymbols.Split(';'));
-            var toRemove = new HashSet<string>(buildSession.buildConfig.removeScriptSymbols.Split(';'));
-            defaultSymbols.UnionWith(configSymbols);
-            defaultSymbols.ExceptWith(toRemove);
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup,
-                string.Join(";", defaultSymbols));
+            BuildOptions buidlOptions = BuildOptions.None;
+            if (config.development)
+            {
+                buidlOptions |= BuildOptions.Development;
+                buidlOptions |= BuildOptions.EnableDeepProfilingSupport;
+                buidlOptions |= BuildOptions.AllowDebugging;
+                var linkerFlagsWlStubGroupSize = "--linker-flags=-Wl,--stub-group-size=11534360";
+                PlayerSettings.SetAdditionalIl2CppArgs(linkerFlagsWlStubGroupSize);
+            }
+
+            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
+            {
+                buidlOptions |= BuildOptions.AcceptExternalModificationsToPlayer;
+            }
+
+            return buidlOptions;
         }
 
-        static void PrePostprocessBuild()
+
+        static string[] GetBuildScenes(BuildConfig config)
         {
+            return EditorBuildSettings.scenes.Where(e => e.enabled).Select(e => e.path).ToArray();
         }
 
-        static void BuildPlayer()
+        static string LogBuildReportSteps(BuildReport buildReport)
         {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"Build steps: {buildReport.steps.Length}");
+            int maxWidth = buildReport.steps.Max(s => s.name.Length + s.depth) + 3;
+            foreach (var step in buildReport.steps)
+            {
+                string rawStepOutput = new string('-', step.depth + 1) + ' ' + step.name;
+                sb.AppendLine($"{rawStepOutput.PadRight(maxWidth)}: {step.duration:g}");
+            }
+
+            return sb.ToString();
+        }
+
+        static string LogBuildMessages(BuildReport buildReport)
+        {
+            var sb = new StringBuilder();
+            foreach (var step in buildReport.steps)
+            {
+                foreach (var message in step.messages)
+                    // If desired, this logic could ignore any Info or Warning messages to focus on more serious messages
+                    sb.AppendLine($"[{message.type}] {message.content}");
+            }
+
+            string messages = sb.ToString();
+            if (messages.Length > 0)
+                return "Messages logged during Build:\n" + messages;
+            else
+                return "";
+        }
+
+        static bool BuildPlayer(BuildConfig config)
+        {
+            Debug.Log($"BuildPlayer");
+
+            string targetPath = config.buildTargetPath;
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput");
+            }
+
+#if UNITY_ANDROID
+            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
+            {
+                if (!Directory.Exists(targetPath))
+                {
+                    Directory.CreateDirectory(targetPath);
+                }
+            }
+
+            var buildReport = UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath,
+                BuildTarget.Android,
+                GetBuildOptions(config));
+#endif
+
+#if UNITY_IOS
+            var buildReport = UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.iOS,
+                GetBuildOptions(config));
+#endif
+            var report = buildReport;
+            var sb = new StringBuilder();
+            sb.AppendLine("Build result   : " + report.summary.result);
+            sb.AppendLine("Build size     : " + report.summary.totalSize + " bytes");
+            sb.AppendLine("Build time     : " + report.summary.totalTime);
+            // sb.AppendLine("Error summary  : " + report.SummarizeErrors());
+            sb.Append(LogBuildReportSteps(report));
+            sb.AppendLine(LogBuildMessages(report));
+            Debug.Log(sb.ToString());
+            
+            return buildReport.summary.result == BuildResult.Succeeded;
         }
     }
 }

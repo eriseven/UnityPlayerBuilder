@@ -14,6 +14,7 @@ namespace ProjectBuilder.Editor
         #region Common
 
         public string configName = "";
+        public string playerSettings = "";
         public bool development = false;
         public string packageName = "";
         public string scriptSymbols = "";

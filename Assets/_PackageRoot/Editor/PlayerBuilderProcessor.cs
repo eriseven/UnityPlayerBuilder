@@ -12,5 +12,7 @@ namespace PlayerBuilder.Eidtor
         }
 
         public virtual int callbackOrder { get; }
+
+        public virtual bool AssetEdit => true;
     }
 }
