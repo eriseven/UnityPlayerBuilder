@@ -11,6 +11,7 @@ namespace ProjectBuilder.Editor
     [Serializable]
     public class BuildConfig
     {
+        static Version defaultVersion =  new(0, 0, 0);
         #region Common
 
         public string configName = "";
@@ -46,10 +47,12 @@ namespace ProjectBuilder.Editor
 
         #endregion
 
-        public Version SpecificVersion => Version.Parse(specificVersionString); 
-        
+        [JsonIgnore]
+        public Version SpecificVersion => Version.TryParse(specificVersionString, out Version result) ? result : defaultVersion;
+
         // protected virtual Tuple<string, string, Action<string>>[] AdditionalOptions => new Tuple<string, string, Action<string>>[0];
-        protected virtual (string, string, Action<string>)[] AdditionalOptions => Array.Empty<(string, string, Action<string>)>();
+        protected virtual (string, string, Action<string>)[] AdditionalOptions =>
+            Array.Empty<(string, string, Action<string>)>();
 
 
         public virtual void ParseCommandLineArgs(string[] args)
@@ -76,7 +79,7 @@ namespace ProjectBuilder.Editor
                 {
                     "ver=", "", v =>
                     {
-                        if (Version.TryParse(v, out var ver))
+                        if (!string.IsNullOrEmpty(v) && Version.TryParse(v, out var ver))
                         {
                             this.specificVersionString = ver.ToString();
                         }
@@ -97,8 +100,8 @@ namespace ProjectBuilder.Editor
             }
 
             p.Parse(args);
-            
-            this.scriptSymbols = string.Join(';',  this.scriptSymbols, string.Join(';', symbols));
+
+            this.scriptSymbols = string.Join(';', this.scriptSymbols, string.Join(';', symbols));
         }
 
         public override string ToString()

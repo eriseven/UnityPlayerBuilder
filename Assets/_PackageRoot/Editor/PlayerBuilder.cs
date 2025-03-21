@@ -352,6 +352,10 @@ namespace ProjectBuilder.Editor
 #endif
 
 #if UNITY_IOS
+            if (!Directory.Exists(targetPath))
+            {
+                Directory.CreateDirectory(targetPath);
+            }
             var buildReport = UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.iOS,
                 GetBuildOptions(config));
 #endif

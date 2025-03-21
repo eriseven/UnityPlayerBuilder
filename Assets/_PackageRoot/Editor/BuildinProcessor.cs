@@ -96,7 +96,7 @@ namespace PlayerBuilder.Eidtor
                 PlayerSettings.applicationIdentifier = buildConfig.packageName;
             }
 
-            PlayerSettings.bundleVersion = config.specificVersionString;
+            PlayerSettings.bundleVersion = config.SpecificVersion.ToString();
 
             int buildNumber = 0;
             if (config.buildNumber < 0)
