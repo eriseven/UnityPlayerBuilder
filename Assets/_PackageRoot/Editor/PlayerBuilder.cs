@@ -281,7 +281,7 @@ namespace ProjectBuilder.Editor
                 PlayerSettings.SetAdditionalIl2CppArgs(linkerFlagsWlStubGroupSize);
             }
 
-            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
+            // if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
             {
                 buidlOptions |= BuildOptions.AcceptExternalModificationsToPlayer;
             }
