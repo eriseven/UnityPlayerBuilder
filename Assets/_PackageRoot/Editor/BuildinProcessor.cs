@@ -7,6 +7,16 @@ using ProjectBuilder.Editor;
 using UnityEditor;
 using UnityEngine;
 
+#if UNITY_ANDROID
+using UnityEditor.Android;
+#endif
+
+#if UNITY_IOS
+using UnityEditor.iOS;
+using UnityEditor.iOS.Xcode;
+using UnityEditor.iOS.Xcode.Extensions;
+#endif
+
 namespace PlayerBuilder.Eidtor
 {
     public class ScriptDefineSymbolsProcessor : PlayerBuilderProcessor
@@ -51,6 +61,7 @@ namespace PlayerBuilder.Eidtor
             }
 
 #if UNITY_ANDROID
+            PlayerSettings.Android.renderOutsideSafeArea = true;
             if (Enum.IsDefined(typeof(AndroidSdkVersions), buildConfig.minAndroidSdkVersion))
             {
                 PlayerSettings.Android.minSdkVersion = (AndroidSdkVersions)buildConfig.minAndroidSdkVersion;
@@ -79,6 +90,15 @@ namespace PlayerBuilder.Eidtor
             EditorUserBuildSettings.exportAsGoogleAndroidProject = true;
             EditorUserBuildSettings.androidCreateSymbols = AndroidCreateSymbols.Public;
 #endif
+
+#if UNITY_IOS
+            PlayerSettings.iOS.appleEnableAutomaticSigning = !string.IsNullOrEmpty(config.appleDeveloperTeamID);
+            if (PlayerSettings.iOS.appleEnableAutomaticSigning)
+            {
+                PlayerSettings.iOS.appleDeveloperTeamID = config.appleDeveloperTeamID;
+            }
+#endif
+
             return 0;
         }
     }
@@ -130,9 +150,13 @@ namespace PlayerBuilder.Eidtor
                     Directory.CreateDirectory(targetPath);
                 }
             }
+            UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.Android, GetBuildOptions(config));
 #endif
 
-            BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.Android, GetBuildOptions(config));
+#if UNITY_IOS
+            UnityEditor.BuildPipeline.BuildPlayer(GetBuildScenes(config), targetPath, BuildTarget.iOS,
+                GetBuildOptions(config));
+#endif
 
             return 0;
         }
