@@ -45,7 +45,8 @@ namespace ProjectBuilder.Editor
 
         #endregion
 
-        protected virtual Option[] AdditionalOptions => Array.Empty<Option>();
+        // protected virtual Tuple<string, string, Action<string>>[] AdditionalOptions => new Tuple<string, string, Action<string>>[0];
+        protected virtual (string, string, Action<string>)[] AdditionalOptions => Array.Empty<(string, string, Action<string>)>();
 
 
         public virtual void ParseCommandLineArgs(string[] args)
@@ -82,7 +83,14 @@ namespace ProjectBuilder.Editor
 
             foreach (var op in AdditionalOptions)
             {
-                p.Add(op);
+                try
+                {
+                    p.Add(op.Item1, op.Item2, op.Item3);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
             }
 
             p.Parse(args);
