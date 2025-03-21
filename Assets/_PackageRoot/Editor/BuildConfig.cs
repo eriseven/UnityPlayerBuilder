@@ -20,7 +20,8 @@ namespace ProjectBuilder.Editor
         public string scriptSymbols = "";
         public string removeScriptSymbols = "";
         public string buildTargetPath = "";
-        public string specificVersionString = "0.0.1";
+        public string specificVersionString = "0.0.0";
+        public int buildNumber = -1;
 
         #endregion
 
@@ -45,6 +46,8 @@ namespace ProjectBuilder.Editor
 
         #endregion
 
+        public Version SpecificVersion => Version.Parse(specificVersionString); 
+        
         // protected virtual Tuple<string, string, Action<string>>[] AdditionalOptions => new Tuple<string, string, Action<string>>[0];
         protected virtual (string, string, Action<string>)[] AdditionalOptions => Array.Empty<(string, string, Action<string>)>();
 

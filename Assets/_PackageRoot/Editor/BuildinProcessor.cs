@@ -96,6 +96,15 @@ namespace PlayerBuilder.Eidtor
                 PlayerSettings.applicationIdentifier = buildConfig.packageName;
             }
 
+            PlayerSettings.bundleVersion = config.specificVersionString;
+
+            int buildNumber = 0;
+            if (config.buildNumber < 0)
+            {
+                buildNumber = EditorPrefs.GetInt($"{Application.dataPath}_{PlayerSettings.bundleVersion}_buildNumber", 0);
+                EditorPrefs.SetInt($"{Application.dataPath}_{PlayerSettings.bundleVersion}_buildNumber", buildNumber++);
+            }
+            
 #if UNITY_ANDROID
             PlayerSettings.Android.renderOutsideSafeArea = true;
             if (Enum.IsDefined(typeof(AndroidSdkVersions), buildConfig.minAndroidSdkVersion))
@@ -125,6 +134,10 @@ namespace PlayerBuilder.Eidtor
 
             EditorUserBuildSettings.exportAsGoogleAndroidProject = true;
             EditorUserBuildSettings.androidCreateSymbols = AndroidCreateSymbols.Public;
+
+            var ver = config.SpecificVersion;
+            
+            PlayerSettings.Android.bundleVersionCode = buildNumber + ver.Build * 100 + ver.Minor * 100 * 1000 + ver.Major * 100 * 1000 * 1000;
 #endif
 
 #if UNITY_IOS
@@ -133,6 +146,8 @@ namespace PlayerBuilder.Eidtor
             {
                 PlayerSettings.iOS.appleDeveloperTeamID = config.appleDeveloperTeamID;
             }
+
+            PlayerSettings.iOS.buildNumber = $"{PlayerSettings.bundleVersion}.{buildNumber}";
 #endif
 
             return 0;

@@ -334,7 +334,7 @@ namespace ProjectBuilder.Editor
             string targetPath = config.buildTargetPath;
             if (string.IsNullOrEmpty(targetPath))
             {
-                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput");
+                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput", EditorUserBuildSettings.activeBuildTarget.ToString());
             }
 
 #if UNITY_ANDROID
