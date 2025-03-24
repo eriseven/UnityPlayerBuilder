@@ -1,18 +1,22 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using System;
+using Cysharp.Threading.Tasks;
 using ProjectBuilder.Editor;
 using UnityEditor.Build;
 
 namespace PlayerBuilder.Eidtor
 {
-    public class PlayerBuilderProcessor : IOrderedCallback
+    public abstract class PlayerBuilderProcessor : IOrderedCallback
     {
-        public virtual async UniTask<int> Process(BuildConfig config)
-        {
-            return 0;
-        }
-
-        public virtual int callbackOrder { get; }
-
+        public abstract int Process(BuildConfig config);
         public virtual bool AssetEdit => true;
+        public abstract bool IsDone();
+        public string Error => this.Exception?.Message;
+        public Exception Exception
+        {
+            get;
+            protected set;
+        } = null;
+
+        public abstract int callbackOrder { get; }
     }
 }

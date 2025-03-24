@@ -22,7 +22,7 @@ public static class DemoBuilder
     {
         public override int callbackOrder { get; } = 100;
 
-        public override async UniTask<int> Process(BuildConfig config)
+        public override int Process(BuildConfig config)
         {
             DemoBuildConfig buildConfig = config as DemoBuildConfig;
             Debug.Assert(buildConfig != null);
@@ -31,13 +31,18 @@ public static class DemoBuilder
 
             return 0;
         }
+
+        public override bool IsDone()
+        {
+            return true;
+        }
     }
 
     public class DemoPostProcessor : PlayerBuilderProcessor
     {
         public override int callbackOrder { get; } = 10000;
 
-        public override async UniTask<int> Process(BuildConfig config)
+        public override int Process(BuildConfig config)
         {
             DemoBuildConfig buildConfig = config as DemoBuildConfig;
             Debug.Assert(buildConfig != null);
@@ -45,6 +50,11 @@ public static class DemoBuilder
             Debug.Log($"DemoPostProcessor({callbackOrder}): \n buildConfig.channel: {buildConfig.channel}");
 
             return 0;
+        }
+
+        public override bool IsDone()
+        {
+            return true;
         }
     }
 }

@@ -20,11 +20,13 @@ using UnityEditor.iOS.Xcode.Extensions;
 
 namespace PlayerBuilder.Eidtor
 {
+
+    
     public class ApplyPlayerSettingsPreset : PlayerBuilderProcessor
     {
         public override int callbackOrder { get; } = -1;
 
-        public override async UniTask<int> Process(BuildConfig buildConfig)
+        public override int Process(BuildConfig buildConfig)
         {
             if (!string.IsNullOrEmpty(buildConfig.playerSettings))
             {
@@ -34,7 +36,6 @@ namespace PlayerBuilder.Eidtor
                     try
                     {
                         Debug.Log($"ResetPlayerSettings: {preset.name}");
-                        // AssetDatabase.StartAssetEditing();
                         var playerSettings = Resources.FindObjectsOfTypeAll<PlayerSettings>()[0];
                         preset.ApplyTo(playerSettings);
                         AssetDatabase.Refresh();
@@ -43,23 +44,26 @@ namespace PlayerBuilder.Eidtor
                     catch (Exception e)
                     {
                         Debug.LogException(e);
-                    }
-                    finally
-                    {
-                        // AssetDatabase.StopAssetEditing();
+                        this.Exception = e;
+                        return -1;
                     }
                 }
             }
 
             return 0;
         }
+
+        public override bool IsDone()
+        {
+            return true;
+        }
     }
 
     public class ScriptDefineSymbolsProcessor : PlayerBuilderProcessor
     {
-        public override int callbackOrder { get; } = 5001;
+        public override int callbackOrder { get; } = 4000;
 
-        public override async UniTask<int> Process(BuildConfig config)
+        public override int Process(BuildConfig config)
         {
             Debug.Log($"ScriptDefineSymbolsProcessor");
             var defaultSymbols = new HashSet<string>(PlayerSettings
@@ -72,13 +76,18 @@ namespace PlayerBuilder.Eidtor
                 string.Join(";", defaultSymbols));
             return 0;
         }
+
+        public override bool IsDone()
+        {
+            return true;
+        }
     }
 
     public class PrePostprocessor : PlayerBuilderProcessor
     {
-        public override int callbackOrder { get; } = 5001;
+        public override int callbackOrder { get; } = 6001;
 
-        public override async UniTask<int> Process(BuildConfig config)
+        public override int Process(BuildConfig config)
         {
             Debug.Log($"PrePostprocessor");
 
@@ -151,6 +160,11 @@ namespace PlayerBuilder.Eidtor
 #endif
 
             return 0;
+        }
+
+        public override bool IsDone()
+        {
+            return true;
         }
     }
 }

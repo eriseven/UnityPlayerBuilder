@@ -106,23 +106,27 @@ namespace ProjectBuilder.Editor
 
             Debug.Log($"BuildSession \n {buildSession}");
 
+            RunSteps();
+            
             EditorApplication.update -= OnUpdate;
             EditorApplication.update += OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
-
-            // ResetPlayerSettings(buildConfig);
-
-            RunSteps().Forget();
         }
 
         // [MenuItem("ProjectBuilder/Cancel Building")]
-        static void OnEnd()
+        static void OnEnd(Exception exception = null)
         {
             Debug.Log($"BuildSession[{Application.dataPath}] build end.");
             EditorApplication.update -= OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
+
+            if (exception == null && buildSession != null)
+            {
+                BuildPlayer(buildSession.buildConfig);
+            }
             ClearLastBuildSession();
+            
         }
 
         static void OnUpdate()
@@ -138,7 +142,38 @@ namespace ProjectBuilder.Editor
                 Debug.Log($"BuildSession[{Application.dataPath}] is compiling ...");
                 return;
             }
+
+            if (BuildPipeline.isBuildingPlayer)
+            {
+                Debug.Log($"BuildSession[{Application.dataPath}] is building player ...");
+                return;
+            }
+
+            if (buildSession == null)
+            {
+                OnEnd();
+                return;
+            }
+
+            if (buildSession.currentStepIndex >= 0 && buildSession.currentStepIndex < buildSteps.Count())
+            {
+                if (buildSteps[buildSession.currentStepIndex].IsDone())
+                {
+                    buildSession.currentStepIndex++;
+                    StoreBuildSession(buildSession);
+                    if (buildSession.currentStepIndex >= buildSteps.Count())
+                    {
+                        OnEnd();
+                    }
+                    else
+                    {
+                        RunStep(buildSteps[buildSession.currentStepIndex]);
+                        // buildSteps[buildSession.currentStepIndex].Process(buildSession.buildConfig);
+                    }
+                }
+            }
         }
+
 
         static void OnBeforeAssemblyReload()
         {
@@ -158,12 +193,12 @@ namespace ProjectBuilder.Editor
                 return;
             }
 
+            RunSteps();
+            
             EditorApplication.update -= OnUpdate;
             EditorApplication.update += OnUpdate;
             AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
-
-            RunSteps().Forget();
         }
 
 
@@ -200,13 +235,13 @@ namespace ProjectBuilder.Editor
             return buildConfig;
         }
 
-        static async UniTask<int> RunStep(PlayerBuilderProcessor processor)
+        static int RunStep(PlayerBuilderProcessor processor)
         {
             bool assetEdit = processor.AssetEdit;
             try
             {
                 if (assetEdit) AssetDatabase.StartAssetEditing();
-                return await processor.Process(buildSession.buildConfig);
+                return processor.Process(buildSession.buildConfig);
             }
             catch (Exception e)
             {
@@ -219,43 +254,25 @@ namespace ProjectBuilder.Editor
             }
         }
 
-        static async UniTask RunSteps()
+        static bool IsReadyNext()
+        {
+            return !BuildPipeline.isBuildingPlayer && !EditorApplication.isCompiling && !EditorApplication.isUpdating;
+        }
+
+        static void RunSteps()
         {
             CollectProcessors();
             buildSession.currentStepIndex++;
 
-            // for (int i = buildSession.currentStepIndex; i < buildSteps.Count; i++)
-            for (; buildSession.currentStepIndex < buildSteps.Count; buildSession.currentStepIndex++)
+            if (buildSession.currentStepIndex >= 0 && buildSession.currentStepIndex < buildSteps.Count())
             {
-                int result = 0;
-                try
-                {
-                    result = await RunStep(buildSteps[buildSession.currentStepIndex]);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                    OnEnd();
-                    // throw;
-                }
-
-                // Debug.Log($"WaitNextFame");
-                // await UniTask.NextFrame();
-                Debug.Log($"Wait for building player");
-                await UniTask.WaitUntil(() => BuildPipeline.isBuildingPlayer == false);
-
-                Debug.Log($"Wait for editor updating");
-                await UniTask.WaitUntil(() => EditorApplication.isUpdating == false);
-
-                Debug.Log($"Wait for editor compiling");
-                await UniTask.WaitUntil(() => EditorApplication.isCompiling == false);
-
-
-                StoreBuildSession(buildSession);
+                RunStep(buildSteps[buildSession.currentStepIndex]);
+                // buildSteps[buildSession.currentStepIndex].Process(buildSession.buildConfig);
             }
-
-            BuildPlayer(buildSession.buildConfig);
-            OnEnd();
+            else
+            {
+                OnEnd();
+            }
         }
 
         private static List<PlayerBuilderProcessor> buildSteps = new();
@@ -281,7 +298,7 @@ namespace ProjectBuilder.Editor
                 PlayerSettings.SetAdditionalIl2CppArgs(linkerFlagsWlStubGroupSize);
             }
 
-            // if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
+            if (EditorUserBuildSettings.exportAsGoogleAndroidProject)
             {
                 buidlOptions |= BuildOptions.AcceptExternalModificationsToPlayer;
             }
@@ -334,7 +351,8 @@ namespace ProjectBuilder.Editor
             string targetPath = config.buildTargetPath;
             if (string.IsNullOrEmpty(targetPath))
             {
-                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput", EditorUserBuildSettings.activeBuildTarget.ToString());
+                targetPath = Path.Combine(Path.GetDirectoryName(Application.dataPath), "buildOutput",
+                    EditorUserBuildSettings.activeBuildTarget.ToString());
             }
 
 #if UNITY_ANDROID
@@ -368,7 +386,7 @@ namespace ProjectBuilder.Editor
             sb.Append(LogBuildReportSteps(report));
             sb.AppendLine(LogBuildMessages(report));
             Debug.Log(sb.ToString());
-            
+
             return buildReport.summary.result == BuildResult.Succeeded;
         }
     }
